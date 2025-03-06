@@ -1,0 +1,13 @@
+E.g., the following commands should allow you to run the Pox built in "forwarding.hub" application:
+
+this is to clear
+sudo mn -c
+
+run this in the mini net folder
+sudo mn --topo single,6 --mac --controller remote --switch ovsk,protocols=OpenFlow10
+
+run xterm 'h1' or 's1' to create a new terminal for a host or a switch
+
+
+run this in the pox folder
+./pox.py openflow.of_01 --address=127.0.0.1 --port=6653 forwarding.hub
