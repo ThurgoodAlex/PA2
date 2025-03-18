@@ -1,5 +1,5 @@
 from core import core
-from ib.addresses import IPAddr
+from lib.addresses import IPAddr
 import openflow.libopenflow_01 as of
 log = core.getLogger()
 
