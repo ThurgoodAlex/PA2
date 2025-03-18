@@ -6,7 +6,7 @@ log = core.getLogger()
 class LoadBalancer(object):
     def __init__(self):
         core.openflow.addListeners(self)
-        self.h1_ip = IPAddr("10.0.0.1")
+        self.h1_ip = IPAddr("10.0.0.10")
         self.h5_ip = IPAddr("10.0.0.5")
         self.h1_port = 1
         self.h5_port = 5
@@ -17,6 +17,15 @@ class LoadBalancer(object):
         self.setup_rules()
     
     def setup_rules(self):
+        """This sets up the openflow to allow ARP packets and creates the rules from h1->h5 and vice versa"""
+        
+        arp_rule = of.ofp_flow_mod()
+        arp_rule.match.dl_type = 0x0806
+        arp_rule.actions.append(of.ofp_action_output(port=of.OFPP_FLOOD))
+        self.connection.send(arp_rule)
+        log.info("Installed ARP handling rule")
+
+
         h1_to_h5 = of.ofp_flow_mod()
         h1_to_h5.match.in_port = self.h1_port
         h1_to_h5.match.dl_type = 0x0800 

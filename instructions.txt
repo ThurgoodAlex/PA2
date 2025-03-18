@@ -19,6 +19,7 @@ xterm & to create a new shell
 
 run this in the pox folder
 ./pox.py openflow.of_01 --address=127.0.0.1 --port=6653 forwarding.hub
+./pox.py log.level --DEBUG openflow.of_01 PA2:launch
 
 
 to send an arp from h1 to h2 through s1
