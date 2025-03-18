@@ -1,6 +1,6 @@
-from core import core
-from lib.addresses import IPAddr
-import openflow.libopenflow_01 as of
+from pox.core import core
+from pox.lib.addresses import IPAddr
+import pox.openflow.libopenflow_01 as of
 log = core.getLogger()
 
 class LoadBalancer(object):
