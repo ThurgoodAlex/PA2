@@ -18,8 +18,8 @@ run xterm 'h1' or 's1' to create a new terminal for a host or a switch
 xterm & to create a new shell
 
 run this in the pox folder
-./pox.py openflow.of_01 --address=127.0.0.1 --port=6653 forwarding.hub
-./pox.py log.level --DEBUG openflow.of_01 PA2:launch
+move .py file into ext folder (not PA2 folder)
+./pox.py log.level --DEBUG openflow.of_01 --port=6653 Alex_Thurgood_u1350818:launch
 
 
 to send an arp from h1 to h2 through s1
