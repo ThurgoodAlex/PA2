@@ -9,7 +9,7 @@ log = core.getLogger()
 class LoadBalancer(object):
     def __init__(self):
         core.openflow.addListeners(self)
-        self.h1_ip = IPAddr("10.0.0.10")
+        self.h1_ip = IPAddr("10.0.0.1")
         self.h5_ip = IPAddr("10.0.0.5")
         self.h1_port = 1
         self.h5_port = 5
@@ -60,15 +60,14 @@ class LoadBalancer(object):
                 arp_reply.opcode = arp.REPLY
                 arp_reply.protosrc = packet.protodst
                 arp_reply.protodst = packet.protosrc
-                
+
                 ether = ethernet()
                 ether.type = ethernet.ARP_TYPE
                 ether.dst = packet.src
                 ether.src = packet.dst
                 ether.payload = arp_reply
 
-                #send this packet to the switch
-                #see section below on this topic
+                #sending this packet to the switch
                 msg = of.ofp_packet_out()
                 msg.data = ether.pack() 
                 msg.actions.append(of.ofp_action_output(port=event.port))
