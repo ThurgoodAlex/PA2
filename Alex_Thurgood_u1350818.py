@@ -50,17 +50,18 @@ class LoadBalancer(object):
         
     def _handle_PacketIn (self, event):
         """This method has been taken and modified from the noxrepo documentation"""
-        print("Received packet:", event.parsed.type)
+        log.info(f"Received packet:{event.parsed.type}")
         packet = event.parsed
         if packet.type == packet.ARP_TYPE:
+            arp_packet = packet.payload
             if packet.payload.opcode == arp.REQUEST:
-                log.info("ARP request")
+                log.info("ARP request from %s for %s", arp_packet.hwsrc, arp_packet.protodst)
                 arp_reply = arp()
                 arp_reply.hwsrc = packet.dst
-                arp_reply.hwdst = packet.hwsrc
+                arp_reply.hwdst = packet.src
                 arp_reply.opcode = arp.REPLY
-                arp_reply.protosrc = packet.protodst
-                arp_reply.protodst = packet.protosrc
+                arp_reply.protosrc = arp_packet.protodst
+                arp_reply.protodst = arp_packet.protosrc
 
                 ether = ethernet()
                 ether.type = ethernet.ARP_TYPE
