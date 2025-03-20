@@ -49,9 +49,11 @@ class LoadBalancer(object):
         log.info("Created flow rule from h5 -> h1")
         
     def _handle_PacketIn (self, event):
+        """This method has been taken and modified from the noxrepo documentation"""
         packet = event.parsed
         if packet.type == packet.ARP_TYPE:
             if packet.payload.opcode == arp.REQUEST:
+                log.info("ARP request")
                 arp_reply = arp()
                 arp_reply.hwsrc = packet.dst
                 arp_reply.hwdst = packet.hwsrc
