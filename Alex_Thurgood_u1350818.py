@@ -8,27 +8,27 @@ log = core.getLogger()
 
 class LoadBalancer(object):
     def __init__(self):
-        core.openflow.addListeners(self)
         self.h1_ip = IPAddr("10.0.0.1")
         self.h5_ip = IPAddr("10.0.0.5")
         self.h1_port = 1
         self.h5_port = 5
+        core.openflow.addListeners(self)
         log.info("LoadBalancer initialized")
         print("LoadBalancer initialized")
     
     def _handle_ConnectionUp(self, event):
-        self.connection = event.connection
+
         log.info("Switch %s has connected." % (event.dpid))
-        self.setup_rules()
+        self.setup_rules(event)
     
-    def setup_rules(self):
+    def setup_rules(self, event):
         """Set up OpenFlow rules to allow ARP packets and direct flows between h1 and h5."""
         
         # ARP packet rule
         arp_rule = of.ofp_flow_mod()
         arp_rule.match.dl_type = 0x0806
         arp_rule.actions.append(of.ofp_action_output(port=of.OFPP_FLOOD))
-        self.connection.send(arp_rule)
+        event.connection.send(arp_rule)
         log.info("Created ARP rule")
 
         # h1 -> h5 rule
@@ -37,7 +37,7 @@ class LoadBalancer(object):
         h1_to_h5.match.dl_type = 0x0800 
         h1_to_h5.match.nw_dst = self.h5_ip
         h1_to_h5.actions.append(of.ofp_action_output(port=self.h5_port))
-        self.connection.send(h1_to_h5)
+        event.connection.send(h1_to_h5)
         log.info("Created flow rule from h1 -> h5")
         
         # h5 -> h1 rule
@@ -46,7 +46,7 @@ class LoadBalancer(object):
         h5_to_h1.match.dl_type = 0x0800
         h5_to_h1.match.nw_dst = self.h1_ip 
         h5_to_h1.actions.append(of.ofp_action_output(port=self.h1_port))
-        self.connection.send(h5_to_h1)
+        event.connection.send(h5_to_h1)
         log.info("Created flow rule from h5 -> h1")
         
     def _handle_PacketIn (self, event):
@@ -73,7 +73,7 @@ class LoadBalancer(object):
                 msg = of.ofp_packet_out()
                 msg.data = ether.pack() 
                 msg.actions.append(of.ofp_action_output(port=event.port))
-                self.connection.send(msg)
+                event.connection.send(msg)
 
                 log.info("Sent ARP reply to %s" % arp_reply.protodst)
             
