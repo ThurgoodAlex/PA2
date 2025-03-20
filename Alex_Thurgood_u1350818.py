@@ -14,6 +14,7 @@ class LoadBalancer(object):
         self.h1_port = 1
         self.h5_port = 5
         log.info("LoadBalancer initialized")
+        print("LoadBalancer initialized")
     
     def _handle_ConnectionUp(self, event):
         self.connection = event.connection
