@@ -60,13 +60,22 @@ class LoadBalancer(object):
                 arp_reply.opcode = arp.REPLY
                 arp_reply.protosrc = packet.protodst
                 arp_reply.protodst = packet.protosrc
+                
                 ether = ethernet()
                 ether.type = ethernet.ARP_TYPE
                 ether.dst = packet.src
                 ether.src = packet.dst
                 ether.payload = arp_reply
-            #send this packet to the switch
-            #see section below on this topic
+
+                #send this packet to the switch
+                #see section below on this topic
+                msg = of.ofp_packet_out()
+                msg.data = ether.pack() 
+                msg.actions.append(of.ofp_action_output(port=event.port))
+                self.connection.send(msg)
+
+                log.info("Sent ARP reply to %s" % arp_reply.protodst)
+            
             elif packet.payload.opcode == arp.REPLY:
                 log.info("ARP reply")
             else:
