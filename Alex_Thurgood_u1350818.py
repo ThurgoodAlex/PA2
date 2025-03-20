@@ -26,7 +26,7 @@ class LoadBalancer(object):
         # ARP packet rule
         arp_rule = of.ofp_flow_mod()
         arp_rule.match.dl_type = 0x0806
-        arp_rule.actions.append(of.ofp_action_output(port=of.OFPP_FLOOD))
+        arp_rule.actions.append(of.ofp_action_output(port=of.OFPP_CONTROLLER))
         event.connection.send(arp_rule)
         log.info("Created ARP rule")
 
