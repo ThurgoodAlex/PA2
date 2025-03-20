@@ -13,7 +13,7 @@ class LoadBalancer(object):
         self.h1_port = 1
         self.h5_port = 5
         core.openflow.addListeners(self)
-        log.info("LoadBalancer initialized with", self.h1_ip, self.h1_port, "and", self.h5_ip, self.h5_port)
+        log.info(f"LoadBalancer initialized with {self.h1_ip}:{self.h1_port} and {self.h5_ip}:{self.h5_port}")
     
     def _handle_ConnectionUp(self, event):
 
