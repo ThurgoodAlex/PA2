@@ -83,4 +83,5 @@ class LoadBalancer(object):
                 log.info("Unknown ARP")
 
 def launch():
+    print("launching")
     core.registerNew(LoadBalancer)
