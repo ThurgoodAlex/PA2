@@ -1,5 +1,5 @@
 from pox.core import core 
-from pox.lib.addresses import IPAddr
+from pox.lib.addresses import IPAddr, EthAddr
 import pox.openflow.libopenflow_01 as of
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.arp import arp
@@ -12,11 +12,11 @@ class LoadBalancer(object):
         self.h5_ip = IPAddr("10.0.0.5")
         self.h1_port = 1
         self.h5_port = 5
+
         core.openflow.addListeners(self)
         log.info(f"LoadBalancer initialized with {self.h1_ip}:{self.h1_port} and {self.h5_ip}:{self.h5_port}")
     
     def _handle_ConnectionUp(self, event):
-
         log.info(f"Switch {event.dpid} has connected.")
         self.setup_rules(event)
     
@@ -41,42 +41,57 @@ class LoadBalancer(object):
         event.connection.send(h5_to_h1)
         log.info("Created flow rule from h5 -> h1")
         
-    def _handle_PacketIn (self, event):
-        """This method has been taken and modified from the noxrepo documentation"""
+    def _handle_PacketIn(self, event):
+        """Handle incoming packets, including ARP requests."""
         packet = event.parsed
-        log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
-        if packet.type == packet.ARP_TYPE:
-            self._handle_ARP(self, event, packet)
-            #Do i need to handle IPv4 Packets?
+        log.info(f"PacketIn: {packet} (type {packet.type})")
+        
+        if packet.type == ethernet.ARP_TYPE:
+            self._handle_ARP(event, packet)
         else:
-            log.info("Unknown ARP")
+            log.info("Ignoring non-ARP packet")
 
     def _handle_ARP(self, event, packet):
+        """This method has been taken and modified from the noxrepo documentation"""
         arp_packet = packet.payload
-        if packet.payload.opcode == arp.REQUEST:
-                log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
+
+        if arp_packet.opcode == arp.REQUEST:
+            requested_ip = arp_packet.protodst
+            
+            if requested_ip in self.arp_table:
+                mac_address = self.arp_table[requested_ip]
+                log.info(f"Sending ARP reply for {requested_ip} with MAC {mac_address}")
+
+                # Create ARP reply
                 arp_reply = arp()
-                arp_reply.hwsrc = packet.dst
-                arp_reply.hwdst = packet.src
+                arp_reply.hwsrc = mac_address
+                arp_reply.hwdst = arp_packet.hwsrc
                 arp_reply.opcode = arp.REPLY
-                arp_reply.protosrc = arp_packet.protodst
+                arp_reply.protosrc = requested_ip
                 arp_reply.protodst = arp_packet.protosrc
 
+                # Create Ethernet frame
                 ether = ethernet()
                 ether.type = ethernet.ARP_TYPE
+                ether.src = mac_address
                 ether.dst = packet.src
-                ether.src = packet.dst
                 ether.payload = arp_reply
 
+                # Send ARP reply
                 msg = of.ofp_packet_out()
-                msg.data = ether.pack() 
+                msg.data = ether.pack()
                 msg.actions.append(of.ofp_action_output(port=event.port))
                 event.connection.send(msg)
 
-                log.info(f"Sent ARP reply to {arp_reply.protodst}")
-            
-        elif packet.payload.opcode == arp.REPLY:
-            log.info("ARP reply")
+                log.info(f"Sent ARP reply to {arp_packet.protosrc}")
+
+            else:
+                log.info(f"No ARP entry for {requested_ip}, ignoring request.")
+
+        elif arp_packet.opcode == arp.REPLY:
+            log.info("Received an ARP reply, ignoring.")
+        else:
+            log.info("Unknown ARP operation")
 
 def launch():
     core.registerNew(LoadBalancer)
