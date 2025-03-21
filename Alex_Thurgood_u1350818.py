@@ -21,15 +21,8 @@ class LoadBalancer(object):
         self.setup_rules(event)
     
     def setup_rules(self, event):
-        """Set up OpenFlow rules to allow ARP packets and direct flows between h1 and h5."""
+        """Set up OpenFlow rules to allow direct flows between h1 and h5."""
         
-        # ARP packet rule
-        arp_rule = of.ofp_flow_mod()
-        arp_rule.match.dl_type = 0x0806
-        arp_rule.actions.append(of.ofp_action_output(port=of.OFPP_CONTROLLER))
-        event.connection.send(arp_rule)
-        log.info("Created ARP rule")
-
         # h1 -> h5 rule
         h1_to_h5 = of.ofp_flow_mod()
         h1_to_h5.match.in_port = self.h1_port
