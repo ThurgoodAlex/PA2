@@ -106,7 +106,7 @@ class LoadBalancer(object):
         if packet.type == packet.ARP_TYPE:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
-            server_ip, server_mac, server_port = self.client_to_server_mapping
+            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             log.info(f"From client: IP={client_ip}, MAC={self.clients_arp_table[client_ip]}, port={self.client_ip_port_table[client_ip]}")
             log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
             self._handle_ARP(event, packet, server_ip, server_mac, server_port)
