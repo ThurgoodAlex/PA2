@@ -91,6 +91,7 @@ class LoadBalancer(object):
     def check_client_mapping(self, client_ip):
         log.info(f"Looking up server for client {client_ip}")
         if client_ip in self.client_to_server_mapping:
+            log.info(f"checking mapping{self.client_to_server_mapping}")
             server_info = self.client_to_server_mapping[client_ip]
             log.info(f"Found existing mapping for client {client_ip}: {server_info}")
             return self.client_to_server_mapping[client_ip]
@@ -106,19 +107,25 @@ class LoadBalancer(object):
         if packet.type == packet.ARP_TYPE:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
-            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
-            log.info(f"From client: IP={client_ip}, MAC={self.clients_arp_table[client_ip]}, port={self.client_ip_port_table[client_ip]}")
-            log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
-            self._handle_ARP(event, packet, server_ip, server_mac, server_port)
+            server_ip = self.check_client_mapping(client_ip)
+            # log.info(f"From client: IP={client_ip}, MAC={self.clients_arp_table[client_ip]}, port={self.client_ip_port_table[client_ip]}")
+            # log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
+            self._handle_ARP(event, packet, client_ip, server_ip)
             #how do i handle IPv4 Packets?
         elif packet.type == packet.IP_TYPE:
             self._handle_IP(event, packet)
         else:
             log.info("Unknown ARP")
 
-    def _handle_ARP(self, event, packet, server_ip, server_mac, server_port):
+    def _handle_ARP(self, event, packet, client_ip, server_ip):
         arp_packet = packet.payload
         log.info(f"ARP packet opcode: {arp_packet.opcode}")
+        server_mac = self.severs_arp_table[server_ip]
+        server_port = self.server_ip_port_table[server_ip]
+        client_mac = self.clients_arp_table[client_ip]
+        client_port = self.client_ip_port_table[client_ip]
+        log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
+        log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
             log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
             log.info(f"ARP request details - protosrc: {arp_packet.protosrc}, hwdst: {arp_packet.hwdst}")
