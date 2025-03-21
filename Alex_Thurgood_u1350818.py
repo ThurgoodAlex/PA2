@@ -9,13 +9,6 @@ log = core.getLogger()
 class LoadBalancer(object):
     def __init__(self):
         self.vIP = IPAddr("10.0.0.10")
-        #this h1 and h5 stuff is old
-        self.h1_ip = IPAddr("10.0.0.1")
-        self.h5_ip = IPAddr("10.0.0.5")
-        self.h1_port = 1
-        self.h5_port = 5
-        self.server_port = 0
-
         self.current_server = 0
 
         self.clients_MAC_table = {
@@ -62,9 +55,9 @@ class LoadBalancer(object):
 
         self.client_to_server_mapping[client_ip] = (server_ip, server_mac, server_port)
 
-        log.info(f"Round Robin selected: {server_ip} ({server_mac}) on port {self.server_port}")
+        log.info(f"Round Robin selected: {server_ip} ({server_mac}) on port {server_port}")
         
-        return server_ip, server_mac, self.server_port
+        return server_ip, server_mac, server_port
     
     def _handle_ConnectionUp(self, event):
 
@@ -174,20 +167,15 @@ class LoadBalancer(object):
 
         if ip_packet.dstip == self.vIP:
             client_ip = ip_packet.srcip
-            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
-
-            client_mac = self.clients_MAC_table.get(client_ip)
-            client_port = self.client_port_table.get(client_ip)
-        
-            if client_mac and client_port:
-                self.install_flows(event, client_ip, client_mac, client_port, 
-                                server_ip, server_mac, server_port)
-                
-            msg = of.ofp_packet_out()
-            msg.data = event.data
-            msg.actions.append(of.ofp_action_output(port=server_port))
-            event.connection.send(msg)
-            log.info(f"Forwarded IP packet from {client_ip} to server {server_ip} on port {server_port}")
+            if client_ip in self.client_to_server_mapping:
+                server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
+                msg = of.ofp_packet_out()
+                msg.data = event.data
+                msg.actions.append(of.ofp_action_output(port=server_port))
+                event.connection.send(msg)
+                log.info(f"Forwarded IP packet from {client_ip} to server {server_ip} on port {server_port}")
+            else:
+                log.info("bad IP")
 
 def launch():
     core.registerNew(LoadBalancer)
