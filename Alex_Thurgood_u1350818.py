@@ -123,7 +123,7 @@ class LoadBalancer(object):
         elif packet.type == packet.IP_TYPE:
             self._handle_IP(event, packet)
         else:
-            log.info("Unknown ARP")
+            log.info(f"mystery packet{event.parsed}")
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
         arp_packet = packet.payload
