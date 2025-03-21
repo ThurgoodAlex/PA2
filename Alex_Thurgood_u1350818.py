@@ -17,7 +17,7 @@ class LoadBalancer(object):
     
     def _handle_ConnectionUp(self, event):
 
-        log.info("Switch %s has connected." % (event.dpid))
+        log.info(f"Switch {event.dpid} has connected.")
         self.setup_rules(event)
     
     def setup_rules(self, event):
@@ -43,13 +43,18 @@ class LoadBalancer(object):
         
     def _handle_PacketIn (self, event):
         """This method has been taken and modified from the noxrepo documentation"""
-        log.info(f"Received packet:{event}")
         packet = event.parsed
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
         if packet.type == packet.ARP_TYPE:
-            arp_packet = packet.payload
-            if packet.payload.opcode == arp.REQUEST:
-                log.info("ARP request from %s for %s", arp_packet.hwsrc, arp_packet.protodst)
+            self._handle_ARP(self, event, packet)
+            #Do i need to handle IPv4 Packets?
+        else:
+            log.info("Unknown ARP")
+
+    def _handle_ARP(self, event, packet):
+        arp_packet = packet.payload
+        if packet.payload.opcode == arp.REQUEST:
+                log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
                 arp_reply = arp()
                 arp_reply.hwsrc = packet.dst
                 arp_reply.hwdst = packet.src
@@ -63,19 +68,15 @@ class LoadBalancer(object):
                 ether.src = packet.dst
                 ether.payload = arp_reply
 
-                #sending this packet to the switch
                 msg = of.ofp_packet_out()
                 msg.data = ether.pack() 
                 msg.actions.append(of.ofp_action_output(port=event.port))
                 event.connection.send(msg)
 
-                log.info("Sent ARP reply to %s" % arp_reply.protodst)
+                log.info(f"Sent ARP reply to {arp_reply.protodst}")
             
-            elif packet.payload.opcode == arp.REPLY:
-                log.info("ARP reply")
-            else:
-                log.info("Unknown ARP")
+        elif packet.payload.opcode == arp.REPLY:
+            log.info("ARP reply")
 
 def launch():
-    print("launching")
     core.registerNew(LoadBalancer)
