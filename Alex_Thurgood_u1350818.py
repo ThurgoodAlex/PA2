@@ -38,7 +38,6 @@ class LoadBalancer(object):
         self.client_to_server_mapping = {}
 
         core.openflow.addListeners(self)
-        log.info(f"LoadBalancer initialized with {self.h1_ip}:{self.h1_port} and {self.h5_ip}:{self.h5_port}")
         log.info(f"Client ARP table: {self.clients_MAC_table}")
         log.info(f"Server ARP table: {self.servers_MAC_table}")
 
