@@ -121,7 +121,7 @@ class LoadBalancer(object):
         arp_packet = packet.payload
         log.info(f"ARP packet opcode: {arp_packet.opcode}")
         client_mac = self.clients_MAC_table[client_ip]
-        client_port = sel[client_ip]
+        client_port = self.client_port_table[client_ip]
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
