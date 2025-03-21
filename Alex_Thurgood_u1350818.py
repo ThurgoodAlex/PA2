@@ -124,7 +124,7 @@ class LoadBalancer(object):
         if packet.type == packet.ARP_TYPE:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
-            server_ip, server_mac, server_port = self.get_server_for_client(client_ip)
+            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
             self._handle_ARP(event, packet, server_ip, server_mac, server_port)
             #how do i handle IPv4 Packets?
