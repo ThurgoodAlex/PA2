@@ -73,24 +73,6 @@ class LoadBalancer(object):
     def install_flows(self, event):
         """Set up OpenFlow rules to allow direct flows between the servers and the virtual ip."""
         
-        # # h1 -> h5 rule
-        # h1_to_h5 = of.ofp_flow_mod()
-        # h1_to_h5.match.in_port = self.h1_port
-        # h1_to_h5.match.dl_type = 0x0800 
-        # h1_to_h5.match.nw_dst = self.h5_ip
-        # h1_to_h5.actions.append(of.ofp_action_output(port=self.h5_port))
-        # event.connection.send(h1_to_h5)
-        # log.info("Created flow rule from h1 -> h5")
-        
-        # # h5 -> h1 rule
-        # h5_to_h1 = of.ofp_flow_mod()
-        # h5_to_h1.match.in_port = self.h5_port
-        # h5_to_h1.match.dl_type = 0x0800
-        # h5_to_h1.match.nw_dst = self.h1_ip 
-        # h5_to_h1.actions.append(of.ofp_action_output(port=self.h1_port))
-        # event.connection.send(h5_to_h1)
-        # log.info("Created flow rule from h5 -> h1")
-
         # h5 -> virtual ip 
         h5_to_server = of.ofp_flow_mod()
         h5_to_server.match.nw_dst = self.vIP
@@ -124,7 +106,8 @@ class LoadBalancer(object):
         if packet.type == packet.ARP_TYPE:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
-            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
+            server_ip, server_mac, server_port = self.client_to_server_mapping
+            log.info(f"From client: IP={client_ip}, MAC={self.clients_arp_table[client_ip]}, port={self.client_ip_port_table[client_ip]}")
             log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
             self._handle_ARP(event, packet, server_ip, server_mac, server_port)
             #how do i handle IPv4 Packets?
