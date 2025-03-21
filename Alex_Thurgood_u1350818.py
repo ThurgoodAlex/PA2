@@ -32,7 +32,7 @@ class LoadBalancer(object):
             IPAddr("10.0.0.4"): 4
         }
 
-        self.severs_arp_table = {
+        self.servers_arp_table = {
             IPAddr("10.0.0.5"): EthAddr("00:00:00:00:00:05"),
             IPAddr("10.0.0.6"): EthAddr("00:00:00:00:00:06"),
         }
@@ -58,9 +58,9 @@ class LoadBalancer(object):
             self.current_server = 0
 
         server_mac = self.severs_arp_table[server_ip]  
-        self.server_port = self.server_ip_port_table[server_ip] 
+        server_port = self.server_ip_port_table[server_ip] 
 
-        self.client_to_server_mapping[client_ip] = (server_ip, server_mac, self.server_port)
+        self.client_to_server_mapping[client_ip] = (server_ip, server_mac, server_port)
 
         log.info(f"Round Robin selected: {server_ip} ({server_mac}) on port {self.server_port}")
         
@@ -107,21 +107,19 @@ class LoadBalancer(object):
         if packet.type == packet.ARP_TYPE:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
-            server_ip = self.check_client_mapping(client_ip)
+            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             # log.info(f"From client: IP={client_ip}, MAC={self.clients_arp_table[client_ip]}, port={self.client_ip_port_table[client_ip]}")
             # log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
-            self._handle_ARP(event, packet, client_ip, server_ip)
+            self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
             #how do i handle IPv4 Packets?
         elif packet.type == packet.IP_TYPE:
             self._handle_IP(event, packet)
         else:
             log.info("Unknown ARP")
 
-    def _handle_ARP(self, event, packet, client_ip, server_ip):
+    def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
         arp_packet = packet.payload
         log.info(f"ARP packet opcode: {arp_packet.opcode}")
-        server_mac = self.severs_arp_table[server_ip]
-        server_port = self.server_ip_port_table[server_ip]
         client_mac = self.clients_arp_table[client_ip]
         client_port = self.client_ip_port_table[client_ip]
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
