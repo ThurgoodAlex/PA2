@@ -77,9 +77,11 @@ class LoadBalancer(object):
         client_to_server = of.ofp_flow_mod()
         client_to_server.match.in_port = client_port
         client_to_server.match.dl_type = 0x0800
-        client_to_server.match.nw_dst = server_ip
+        client_to_server.match.nw_dst = self.vIP
         client_to_server.match.dl_src = client_mac  
-        client_to_server.match.dl_dst = server_mac  
+        client_to_server.match.dl_dst = server_mac
+        client_to_server.actions.append(of.ofp_action_set_dl_dst(server_mac))
+        client_to_server.actions.append(of.ofp_action_set_nw_dst(server_ip)) 
         client_to_server.actions.append(of.ofp_action_output(port=server_port))
         event.connection.send(client_to_server)
         log.info(f"client -> server rule created matching on client MAC: {client_mac}, server MAC: {server_mac}, client port: {client_port}")
@@ -93,6 +95,7 @@ class LoadBalancer(object):
         server_to_client.match.nw_dst = client_ip
         server_to_client.match.dl_src = server_mac
         server_to_client.match.dl_dst = client_mac
+        server_to_client.actions.append(of.ofp_action_set_nw_src(self.vIP))
         server_to_client.actions.append(of.ofp_action_output(port=client_port))
         event.connection.send(server_to_client)
         log.info(f"server -> client rule created matching on server MAC: {server_mac}, client MAC: {client_mac}, server port: {server_port}")
@@ -165,8 +168,26 @@ class LoadBalancer(object):
         elif packet.payload.opcode == arp.REPLY:
             log.info("ARP reply")
 
-    def _handle_IP(event, packet):
+    def _handle_IP(self, event, packet):
         log.info(f"in the handle ip with packet: {event.parsed}")
+        ip_packet = packet.payload
+
+        if ip_packet.dstip == self.vIP:
+            client_ip = ip_packet.srcip
+            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
+
+            client_mac = self.clients_MAC_table.get(client_ip)
+            client_port = self.client_port_table.get(client_ip)
+        
+            if client_mac and client_port:
+                self.install_flows(event, client_ip, client_mac, client_port, 
+                                server_ip, server_mac, server_port)
+                
+            msg = of.ofp_packet_out()
+            msg.data = event.data
+            msg.actions.append(of.ofp_action_output(port=server_port))
+            event.connection.send(msg)
+            log.info(f"Forwarded IP packet from {client_ip} to server {server_ip} on port {server_port}")
 
 def launch():
     core.registerNew(LoadBalancer)
