@@ -140,10 +140,10 @@ class LoadBalancer(object):
             log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
             log.info(f"ARP request details - protosrc: {arp_packet.protosrc}, hwdst: {arp_packet.hwdst}")
             arp_reply = arp()
-            arp_reply.hwsrc = packet.dst
+            arp_reply.hwsrc = server_mac
             arp_reply.hwdst = packet.src
             arp_reply.opcode = arp.REPLY
-            arp_reply.protosrc = server_mac
+            arp_reply.protosrc = server_ip 
             arp_reply.protodst = arp_packet.protosrc
 
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
