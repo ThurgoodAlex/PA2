@@ -55,13 +55,13 @@ class LoadBalancer(object):
             self.current_server = 0
 
         server_mac = self.severs_arp_table[server_ip]  
-        server_port = self.server_ip_port_table[server_ip] 
+        self.server_port = self.server_ip_port_table[server_ip] 
 
-        self.client_to_server_mapping[client_ip] = (server_ip, server_mac, server_port)
+        self.client_to_server_mapping[client_ip] = (server_ip, server_mac, self.server_port)
 
-        log.info(f"Round Robin selected: {server_ip} ({server_mac}) on port {server_port}")
+        log.info(f"Round Robin selected: {server_ip} ({server_mac}) on port {self.server_port}")
         
-        return server_ip, server_mac, server_port
+        return server_ip, server_mac, self.server_port
     
     def _handle_ConnectionUp(self, event):
 
@@ -92,14 +92,14 @@ class LoadBalancer(object):
         # h5 -> virtual ip 
         h5_to_server = of.ofp_flow_mod()
         h5_to_server.match.nw_dst = self.vIP
-        h5_to_server.actions.append(of.ofp_action_output(port=self.h5_port))
+        h5_to_server.actions.append(of.ofp_action_output(port=self.server_port))
         event.connection.send(h5_to_server)
         log.info(f"Created flow rule to forward traffic to VIP {self.vIP} -> {self.h5_ip}")
 
         #h6 -> virtual ip 
         h6_to_server = of.ofp_flow_mod()
         h6_to_server.match.nw_dst = self.vIP
-        h6_to_server.actions.append(of.ofp_action_output(port=self.h6_port)) 
+        h6_to_server.actions.append(of.ofp_action_output(port=self.server_port)) 
         event.connection.send(h6_to_server)
         log.info(f"Created flow rule to forward traffic to VIP {self.vIP} -> {self.h6_ip}")
 
