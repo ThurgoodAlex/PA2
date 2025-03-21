@@ -8,12 +8,13 @@ log = core.getLogger()
 
 class LoadBalancer(object):
     def __init__(self):
-        self.vIP = IPAddr("10.0.0.100")
+        self.vIP = IPAddr("10.0.0.10")
         #this h1 and h5 stuff is old
         self.h1_ip = IPAddr("10.0.0.1")
         self.h5_ip = IPAddr("10.0.0.5")
         self.h1_port = 1
         self.h5_port = 5
+        self.server_port = 0
 
         self.current_server = 0
 
@@ -45,6 +46,8 @@ class LoadBalancer(object):
 
         core.openflow.addListeners(self)
         log.info(f"LoadBalancer initialized with {self.h1_ip}:{self.h1_port} and {self.h5_ip}:{self.h5_port}")
+        log.info(f"Client ARP table: {self.clients_arp_table}")
+        log.info(f"Server ARP table: {self.severs_arp_table}")
 
     def round_robin(self, client_ip):
         if self.current_server == 0:
@@ -66,9 +69,8 @@ class LoadBalancer(object):
     def _handle_ConnectionUp(self, event):
 
         log.info(f"Switch {event.dpid} has connected.")
-        self.setup_rules(event)
     
-    def setup_rules(self, event):
+    def install_flows(self, event):
         """Set up OpenFlow rules to allow direct flows between the servers and the virtual ip."""
         
         # # h1 -> h5 rule
@@ -94,29 +96,36 @@ class LoadBalancer(object):
         h5_to_server.match.nw_dst = self.vIP
         h5_to_server.actions.append(of.ofp_action_output(port=self.server_port))
         event.connection.send(h5_to_server)
-        log.info(f"Created flow rule to forward traffic to VIP {self.vIP} -> {self.h5_ip}")
+        log.info(f"Created flow rule to forward traffic to VIP {self.vIP} -> {self.h5_ip} on port {self.server_port}")
 
         #h6 -> virtual ip 
         h6_to_server = of.ofp_flow_mod()
         h6_to_server.match.nw_dst = self.vIP
         h6_to_server.actions.append(of.ofp_action_output(port=self.server_port)) 
         event.connection.send(h6_to_server)
-        log.info(f"Created flow rule to forward traffic to VIP {self.vIP} -> {self.h6_ip}")
+        log.info(f"Created flow rule to forward traffic to VIP {self.vIP} -> h6 on port {self.server_port}")
 
 
     def check_client_mapping(self, client_ip):
+        log.info(f"Looking up server for client {client_ip}")
         if client_ip in self.client_to_server_mapping:
+            server_info = self.client_to_server_mapping[client_ip]
+            log.info(f"Found existing mapping for client {client_ip}: {server_info}")
             return self.client_to_server_mapping[client_ip]
+        log.info(f"No existing mapping found for {client_ip}, using round-robin")
         return self.round_robin(client_ip)
         
     def _handle_PacketIn(self, event):
         """This method has been taken and modified from the noxrepo documentation"""
         
         packet = event.parsed
-        client_ip = packet.payload.protosrc
-        server_ip, server_mac, server_port = self.get_server_for_client(client_ip)
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
+        
         if packet.type == packet.ARP_TYPE:
+            log.info(f"Processing ARP packet from port {event.port}")
+            client_ip = packet.payload.src
+            server_ip, server_mac, server_port = self.get_server_for_client(client_ip)
+            log.info(f"Server assigned: IP={server_ip}, MAC={server_mac}, port={server_port}")
             self._handle_ARP(event, packet, server_ip, server_mac, server_port)
             #how do i handle IPv4 Packets?
         elif packet.type == packet.IP_TYPE:
@@ -126,27 +135,32 @@ class LoadBalancer(object):
 
     def _handle_ARP(self, event, packet, server_ip, server_mac, server_port):
         arp_packet = packet.payload
+        log.info(f"ARP packet opcode: {arp_packet.opcode}")
         if packet.payload.opcode == arp.REQUEST:
-                log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
-                arp_reply = arp()
-                arp_reply.hwsrc = packet.dst
-                arp_reply.hwdst = packet.src
-                arp_reply.opcode = arp.REPLY
-                arp_reply.protosrc = server_mac
-                arp_reply.protodst = arp_packet.protosrc
+            log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
+            log.info(f"ARP request details - protosrc: {arp_packet.protosrc}, hwdst: {arp_packet.hwdst}")
+            arp_reply = arp()
+            arp_reply.hwsrc = packet.dst
+            arp_reply.hwdst = packet.src
+            arp_reply.opcode = arp.REPLY
+            arp_reply.protosrc = server_mac
+            arp_reply.protodst = arp_packet.protosrc
 
-                ether = ethernet()
-                ether.type = ethernet.ARP_TYPE
-                ether.dst = packet.src
-                ether.src = packet.dst
-                ether.payload = arp_reply
+            log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
+            log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
 
-                msg = of.ofp_packet_out()
-                msg.data = ether.pack() 
-                msg.actions.append(of.ofp_action_output(port=event.port))
-                event.connection.send(msg)
+            ether = ethernet()
+            ether.type = ethernet.ARP_TYPE
+            ether.dst = packet.src
+            ether.src = packet.dst
+            ether.payload = arp_reply
 
-                log.info(f"Sent ARP reply to {arp_reply.protodst}")
+            msg = of.ofp_packet_out()
+            msg.data = ether.pack() 
+            msg.actions.append(of.ofp_action_output(port=event.port))
+            event.connection.send(msg)
+
+            log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
             
         elif packet.payload.opcode == arp.REPLY:
             log.info("ARP reply")
