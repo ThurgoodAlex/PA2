@@ -137,7 +137,7 @@ class LoadBalancer(object):
             arp_reply.hwsrc = server_mac
             arp_reply.hwdst = packet.src
             arp_reply.opcode = arp.REPLY
-            arp_reply.protosrc = self.vIP 
+            arp_reply.protosrc = server_ip 
             arp_reply.protodst = arp_packet.protosrc
 
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
