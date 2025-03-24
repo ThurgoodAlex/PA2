@@ -134,6 +134,7 @@ class LoadBalancer(object):
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
+            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             arp_reply = arp()
             arp_reply.hwsrc = server_mac
@@ -157,7 +158,6 @@ class LoadBalancer(object):
             msg.actions.append(of.ofp_action_output(port=event.port))
             event.connection.send(msg)
             
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
             
