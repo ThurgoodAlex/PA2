@@ -169,7 +169,7 @@ class LoadBalancer(object):
         if packet.type == packet.IP_TYPE:
             log.info("ipv4")
             if packet.payload.dstip == self.vIP:
-                client_ip = packet.srcip
+                client_ip = packet.payload.srcip
                 server_info = self.check_client_mapping(client_ip)
                 if server_info:
                     server_ip, server_mac, server_port = server_info
