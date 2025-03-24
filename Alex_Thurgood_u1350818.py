@@ -71,12 +71,11 @@ class LoadBalancer(object):
         client_to_server.match.in_port = client_port
         client_to_server.match.dl_type = 0x0800
         client_to_server.match.nw_dst = self.vIP
-        # client_to_server.match.dl_src = client_mac 
         client_to_server.actions.append(of.ofp_action_dl_addr.set_dst(server_mac)) 
         client_to_server.actions.append(of.ofp_action_nw_addr.set_dst(server_ip))
         client_to_server.actions.append(of.ofp_action_output(port=server_port))
         event.connection.send(client_to_server)
-        log.info(f"client -> server rule created matching on client MAC: {client_mac}, server MAC: {server_mac}, client port: {client_port}")
+        log.info(f"client -> server rule created {client_to_server}")
 
 
         # server -> client flow rule
@@ -85,11 +84,10 @@ class LoadBalancer(object):
         server_to_client.match.dl_type = 0x0800 
         server_to_client.match.nw_src = server_ip 
         server_to_client.match.nw_dst = client_ip
-        server_to_client.match.dl_src = server_mac
         server_to_client.actions.append(of.ofp_action_nw_addr.set_src(self.vIP))
         server_to_client.actions.append(of.ofp_action_output(port=client_port))
         event.connection.send(server_to_client)
-        log.info(f"server -> client rule created matching on server MAC: {server_mac}, client MAC: {client_mac}, server port: {server_port}")
+        log.info(f"server -> client rule created: {server_to_client} ")
 
 
     def check_client_mapping(self, client_ip):
