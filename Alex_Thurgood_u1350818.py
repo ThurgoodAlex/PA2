@@ -71,8 +71,7 @@ class LoadBalancer(object):
         client_to_server.match.in_port = client_port
         client_to_server.match.dl_type = 0x0800
         client_to_server.match.nw_dst = self.vIP
-        client_to_server.match.dl_src = client_mac 
-        client_to_server.actions.append(of.ofp_action_nw_addr.set_src(client_ip))
+        # client_to_server.match.dl_src = client_mac 
         client_to_server.actions.append(of.ofp_action_dl_addr.set_dst(server_mac)) 
         client_to_server.actions.append(of.ofp_action_nw_addr.set_dst(server_ip))
         client_to_server.actions.append(of.ofp_action_output(port=server_port))
@@ -87,7 +86,6 @@ class LoadBalancer(object):
         server_to_client.match.nw_src = server_ip 
         server_to_client.match.nw_dst = client_ip
         server_to_client.match.dl_src = server_mac
-        server_to_client.actions.append(of.ofp_action_dl_addr.set_dst(client_mac))
         server_to_client.actions.append(of.ofp_action_nw_addr.set_src(self.vIP))
         server_to_client.actions.append(of.ofp_action_output(port=client_port))
         event.connection.send(server_to_client)
@@ -185,7 +183,7 @@ class LoadBalancer(object):
                     log.info("sending message")
                 else:
                     log.warning(f"No server mapping found for client {client_ip}")
-        else:
+        elif ip_packet == packet.IPV6_TYPE:
             log.info(f"ipv6 packet{ip_packet}")
             if ip_packet.dstip == self.vIP:
                 client_ip = ip_packet.srcip
@@ -203,6 +201,8 @@ class LoadBalancer(object):
                     log.info("sending message")
                 else:
                     log.warning(f"No server mapping found for client {client_ip}")
+        else:
+            log.info("unkown packet")
 
 def launch():
     core.registerNew(LoadBalancer)
