@@ -94,6 +94,8 @@ class LoadBalancer(object):
 
 
     def check_client_mapping(self, client_ip):
+        """This checks to see if there is a mapping between the client and the server, if not it selects a server via round robin"""
+
         log.info(f"Looking up server for client {client_ip}")
         if client_ip in self.client_to_server_mapping:
             log.info(f"checking mapping{self.client_to_server_mapping}")
@@ -161,24 +163,27 @@ class LoadBalancer(object):
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
-        ip_packet = packet.payload
+        
         log.info(f"handling packet {ip_packet}")
-
-        if ip_packet.dstip == self.vIP:
-            client_ip = ip_packet.srcip
-            server_info = self.check_client_mapping(client_ip)
-            if server_info:
-                server_ip, server_mac, server_port = server_info
-                eth_packet = packet
-                eth_packet.dst = server_mac
-                ip_packet.dstip = server_ip
-                
-                msg = of.ofp_packet_out()
-                msg.data = eth_packet.pack()
-                msg.actions.append(of.ofp_action_output(port=server_port))
-                event.connection.send(msg)
-            else:
-                log.warning(f"No server mapping found for client {client_ip}")
+        ip_packet = packet.payload
+        if ip_packet == packet.IP_TYPE:
+            if ip_packet.dstip == self.vIP:
+                client_ip = ip_packet.srcip
+                server_info = self.check_client_mapping(client_ip)
+                if server_info:
+                    server_ip, server_mac, server_port = server_info
+                    eth_packet = packet
+                    eth_packet.dst = server_mac
+                    ip_packet.dstip = server_ip
+                    
+                    msg = of.ofp_packet_out()
+                    msg.data = eth_packet.pack()
+                    msg.actions.append(of.ofp_action_output(port=server_port))
+                    event.connection.send(msg)
+                else:
+                    log.warning(f"No server mapping found for client {client_ip}")
+        else:
+            log.info(f"ipv6 packet{ip_packet}")
 
 def launch():
     core.registerNew(LoadBalancer)
