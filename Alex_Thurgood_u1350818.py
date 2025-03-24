@@ -71,7 +71,8 @@ class LoadBalancer(object):
         client_to_server.match.in_port = client_port
         client_to_server.match.dl_type = 0x0800
         client_to_server.match.nw_dst = self.vIP
-        client_to_server.match.dl_src = client_mac  
+        client_to_server.match.dl_src = client_mac 
+        client_to_server.actions.append(of.ofp_action_nw_addr.set_src(client_ip))
         client_to_server.actions.append(of.ofp_action_dl_addr.set_dst(server_mac)) 
         client_to_server.actions.append(of.ofp_action_nw_addr.set_dst(server_ip))
         client_to_server.actions.append(of.ofp_action_output(port=server_port))
