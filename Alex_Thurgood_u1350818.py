@@ -166,15 +166,19 @@ class LoadBalancer(object):
         ip_packet = packet.payload
         if ip_packet.dstip == self.vIP:
             client_ip = ip_packet.srcip
-            if client_ip in self.client_to_server_mapping:
-                server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
+            server_info = self.check_client_mapping(client_ip)
+            if server_info:
+                server_ip, server_mac, server_port = server_info
+                eth_packet = packet
+                eth_packet.dst = server_mac
+                ip_packet.dstip = server_ip
+                
                 msg = of.ofp_packet_out()
-                msg.data = event.data
+                msg.data = eth_packet.pack()
                 msg.actions.append(of.ofp_action_output(port=server_port))
                 event.connection.send(msg)
-                log.info(f"Forwarded IP packet from {client_ip} to server {server_ip} on port {server_port}")
             else:
-                log.info("bad IP")
+                log.warning(f"No server mapping found for client {client_ip}")
 
 def launch():
     core.registerNew(LoadBalancer)
