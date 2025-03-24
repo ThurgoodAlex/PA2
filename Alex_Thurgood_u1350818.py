@@ -187,6 +187,22 @@ class LoadBalancer(object):
                     log.warning(f"No server mapping found for client {client_ip}")
         else:
             log.info(f"ipv6 packet{ip_packet}")
+            if ip_packet.dstip == self.vIP:
+                client_ip = ip_packet.srcip
+                server_info = self.check_client_mapping(client_ip)
+                if server_info:
+                    server_ip, server_mac, server_port = server_info
+                    eth_packet = packet
+                    eth_packet.dst = server_mac
+                    ip_packet.dstip = server_ip
+                    log.info('grabbing server info and creating message')
+                    msg = of.ofp_packet_out()
+                    msg.data = eth_packet.pack()
+                    msg.actions.append(of.ofp_action_output(port=server_port))
+                    event.connection.send(msg)
+                    log.info("sending message")
+                else:
+                    log.warning(f"No server mapping found for client {client_ip}")
 
 def launch():
     core.registerNew(LoadBalancer)
