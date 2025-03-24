@@ -114,9 +114,10 @@ class LoadBalancer(object):
             client_ip = packet.payload.protosrc
             server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
-            #how do i handle IPv4 Packets?
-        else:
+        elif packet.type == packet.IP_TYPE or packet.type == packet.IPV6_TYPE:
             self._handle_IP(event, packet)
+        else:
+            log.info("unhandled packet type")
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
         """This is based off the noxrepo documentation and only handles ARP packets. This creates the flow rules and sets up the ARP reply"""
@@ -160,19 +161,27 @@ class LoadBalancer(object):
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
-
         ip_packet = packet.payload
-        if ip_packet.dstip == self.vIP:
-            client_ip = ip_packet.srcip
+
+        client_ip = ip_packet.srcip
+        dst_ip = ip_packet.dstip
+        
+        log.info(f"Handling IP packet from {client_ip} to {dst_ip}")
+        
+        if dst_ip == self.vIP:
             if client_ip in self.client_to_server_mapping:
                 server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
+                
                 msg = of.ofp_packet_out()
                 msg.data = event.data
                 msg.actions.append(of.ofp_action_output(port=server_port))
                 event.connection.send(msg)
-                log.info(f"Forwarded IP packet from {client_ip} to server {server_ip} on port {server_port}")
+                log.info(f"Forwarded packet from {client_ip} to server {server_ip} on port {server_port}")
             else:
-                log.info("bad IP")
+                log.info(f"No mapping found for client {client_ip}")
+        else:
+            log.info(f"Packet not destined for virtual IP: {dst_ip} != {self.vIP}")
+
 
 def launch():
     core.registerNew(LoadBalancer)
