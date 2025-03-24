@@ -129,9 +129,6 @@ class LoadBalancer(object):
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
-            log.info(f"ARP request from {arp_packet.hwsrc} for {arp_packet.protodst}")
-            log.info(f"ARP request details - protosrc: {arp_packet.protosrc}, hwdst: {arp_packet.hwdst}")
-
             self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             arp_reply = arp()
@@ -202,7 +199,7 @@ class LoadBalancer(object):
                 else:
                     log.warning(f"No server mapping found for client {client_ip}")
         else:
-            log.info("unkown packet")
+            log.info(f"unkown packet{ip_packet}")
 
 def launch():
     core.registerNew(LoadBalancer)
