@@ -109,7 +109,7 @@ class LoadBalancer(object):
         packet = event.parsed
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
         
-        if packet.type == packet.ARP_TYPE and packet.protodst == self.vIP:
+        if packet.type == packet.ARP_TYPE and packet.dst == self.vIP:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
             server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
