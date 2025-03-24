@@ -141,7 +141,8 @@ class LoadBalancer(object):
             arp_reply.opcode = arp.REPLY
             arp_reply.protosrc = self.vIP 
             arp_reply.protodst = arp_packet.protosrc
-           
+            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
+
 
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
             log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
@@ -152,7 +153,6 @@ class LoadBalancer(object):
             ether.src = server_mac
             ether.payload = arp_reply
 
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
 
             msg = of.ofp_packet_out()
