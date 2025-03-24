@@ -43,6 +43,10 @@ class LoadBalancer(object):
 
     def round_robin(self, client_ip):
         """This is a round robin implementation to dynamically change what server the virtual ip is pointing towards."""
+        if client_ip in self.client_to_server_mapping:
+            log.info(f"Existing mapping found for {client_ip}. Returning existing mapping.")
+            return self.client_to_server_mapping[client_ip]
+
         if self.current_server == 0:
             server_ip = IPAddr("10.0.0.5")
             self.current_server = 1
@@ -90,17 +94,17 @@ class LoadBalancer(object):
         log.info(f"server -> client rule created: {server_to_client} ")
 
 
-    def check_client_mapping(self, client_ip):
-        """This checks to see if there is a mapping between the client and the server, if not it selects a server via round robin"""
+    # def check_client_mapping(self, client_ip):
+    #     """This checks to see if there is a mapping between the client and the server, if not it selects a server via round robin"""
 
-        log.info(f"Looking up server for client {client_ip}")
-        if client_ip in self.client_to_server_mapping:
-            log.info(f"checking mapping{self.client_to_server_mapping}")
-            server_info = self.client_to_server_mapping[client_ip]
-            log.info(f"Found existing mapping for client {client_ip}: {server_info}")
-            return self.client_to_server_mapping[client_ip]
-        log.info(f"No existing mapping found for {client_ip}, using round-robin")
-        return self.round_robin(client_ip)
+    #     log.info(f"Looking up server for client {client_ip}")
+    #     if client_ip in self.client_to_server_mapping:
+    #         log.info(f"checking mapping{self.client_to_server_mapping}")
+    #         server_info = self.client_to_server_mapping[client_ip]
+    #         log.info(f"Found existing mapping for client {client_ip}: {server_info}")
+    #         return self.client_to_server_mapping[client_ip]
+    #     log.info(f"No existing mapping found for {client_ip}, using round-robin")
+    #     return self.round_robin(client_ip)
         
     def _handle_PacketIn(self, event):
         """This method handles each packet and checks whether or not its an ARP or IP packet """
@@ -111,7 +115,7 @@ class LoadBalancer(object):
         if packet.type == packet.ARP_TYPE:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
-            server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
+            server_ip, server_mac, server_port = self.round_robin(client_ip)
             log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
             self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
         else:
@@ -170,7 +174,7 @@ class LoadBalancer(object):
             log.info("ipv4")
             if packet.payload.dstip == self.vIP:
                 client_ip = packet.payload.srcip
-                server_info = self.check_client_mapping(client_ip)
+                server_info = self.round_robin(client_ip)
                 if server_info:
                     server_ip, server_mac, server_port = server_info
                     packet.dst = server_mac
