@@ -167,6 +167,7 @@ class LoadBalancer(object):
         log.info(f"handling packet {ip_packet}")
         
         if ip_packet == packet.IP_TYPE:
+            log.info("ipv4")
             if ip_packet.dstip == self.vIP:
                 client_ip = ip_packet.srcip
                 server_info = self.check_client_mapping(client_ip)
@@ -175,11 +176,12 @@ class LoadBalancer(object):
                     eth_packet = packet
                     eth_packet.dst = server_mac
                     ip_packet.dstip = server_ip
-                    
+                    log.info('grabbing server info and creating message')
                     msg = of.ofp_packet_out()
                     msg.data = eth_packet.pack()
                     msg.actions.append(of.ofp_action_output(port=server_port))
                     event.connection.send(msg)
+                    log.info("sending message")
                 else:
                     log.warning(f"No server mapping found for client {client_ip}")
         else:
