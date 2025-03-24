@@ -159,7 +159,7 @@ class LoadBalancer(object):
         """This handles the case when the packet is an IP packet"""
         log.info(f"handling packet {packet}")
         
-        if packet == packet.IP_TYPE:
+        if packet.type == packet.IP_TYPE:
             log.info("ipv4")
             if packet.dstip == self.vIP:
                 client_ip = packet.srcip
