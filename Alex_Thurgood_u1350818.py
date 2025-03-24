@@ -128,6 +128,7 @@ class LoadBalancer(object):
         else:
             client_mac = self.servers_MAC_table[server_ip]
             client_port = self.server_port_table[server_ip]
+
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
@@ -167,7 +168,7 @@ class LoadBalancer(object):
         
         if packet.type == packet.IP_TYPE:
             log.info("ipv4")
-            if packet.dstip == self.vIP:
+            if packet.payload.dstip == self.vIP:
                 client_ip = packet.srcip
                 server_info = self.check_client_mapping(client_ip)
                 if server_info:
