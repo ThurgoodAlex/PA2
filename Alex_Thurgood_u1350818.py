@@ -42,18 +42,13 @@ class LoadBalancer(object):
         log.info(f"Server ARP table: {self.servers_MAC_table}")
 
     def round_robin(self, client_ip):
-        """This is a round robin implementation to dynamically change what server the virtual ip is pointing towards."""
+        """Ensure consistent server mapping for each client IP"""
         if client_ip in self.client_to_server_mapping:
             log.info(f"Existing mapping found for {client_ip}. Returning existing mapping.")
             return self.client_to_server_mapping[client_ip]
 
-        log.info(f" not in mapping, getting new server")
-        if self.current_server == 0:
-            server_ip = IPAddr("10.0.0.5")
-            self.current_server = 1
-        else:
-            server_ip = IPAddr("10.0.0.6")
-            self.current_server = 0
+        server_ips = list(self.servers_MAC_table.keys())
+        server_ip = server_ips[len(self.client_to_server_mapping) % len(server_ips)]
 
         server_mac = self.servers_MAC_table[server_ip]  
         server_port = self.server_port_table[server_ip] 
