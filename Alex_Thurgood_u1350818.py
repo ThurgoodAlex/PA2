@@ -107,9 +107,12 @@ class LoadBalancer(object):
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
             client_ip = packet.payload.protosrc
-            server_ip, server_mac, server_port = self.round_robin(client_ip)
-            log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
-            self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
+            if client_ip in self.client_to_server_mapping:
+                server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
+            else:
+                server_ip, server_mac, server_port = self.round_robin(client_ip)
+                log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
+                self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
         else:
             self._handle_IP(event, packet)
 
@@ -153,7 +156,7 @@ class LoadBalancer(object):
             msg.data = ether.pack() 
             msg.actions.append(of.ofp_action_output(port=event.port))
             event.connection.send(msg)
-
+            
             self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
