@@ -114,10 +114,9 @@ class LoadBalancer(object):
             client_ip = packet.payload.protosrc
             server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
-        elif packet.type == packet.IP_TYPE:
-            self._handle_IP(event, packet)
         else:
-             log.info(f"ipV6 packet {event.parsed}")
+            self._handle_IP(event, packet)
+
             
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
@@ -162,8 +161,9 @@ class LoadBalancer(object):
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
-
         ip_packet = packet.payload
+        log.info(f"handling packet {ip_packet}")
+
         if ip_packet.dstip == self.vIP:
             client_ip = ip_packet.srcip
             server_info = self.check_client_mapping(client_ip)
