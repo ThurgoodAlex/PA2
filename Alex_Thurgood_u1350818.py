@@ -127,14 +127,15 @@ class LoadBalancer(object):
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
 
+            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
+            
             arp_reply = arp()
             arp_reply.hwsrc = server_mac
             arp_reply.hwdst = packet.src
             arp_reply.opcode = arp.REPLY
-            arp_reply.protosrc = server_ip 
+            arp_reply.protosrc = self.vIP 
             arp_reply.protodst = arp_packet.protosrc
-
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
+           
 
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
             log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
