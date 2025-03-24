@@ -49,10 +49,10 @@ class LoadBalancer(object):
         
         log.info(f"current server{current_server}")
         if current_server == 0:
-            server_ip = self.servers_MAC_table[0]
+            server_ip = IPAddr("10.0.0.5")
             current_server = 1
         else:
-            server_ip = self.servers_MAC_table[1]
+            server_ip = IPAddr("10.0.0.6")
             current_server = 0
 
         server_mac = self.servers_MAC_table[server_ip]  
