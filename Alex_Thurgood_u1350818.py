@@ -112,6 +112,7 @@ class LoadBalancer(object):
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
             server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
+            log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
             self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
         else:
             self._handle_IP(event, packet)
@@ -121,8 +122,12 @@ class LoadBalancer(object):
         """This is based off the noxrepo documentation and only handles ARP packets. This creates the flow rules and sets up the ARP reply"""
         arp_packet = packet.payload
         log.info(f"ARP packet: {arp_packet}")
-        client_mac = self.clients_MAC_table[client_ip]
-        client_port = self.client_port_table[client_ip]
+        if client_ip  in self.clients_MAC_table:
+            client_mac = self.clients_MAC_table[client_ip]
+            client_port = self.client_port_table[client_ip]
+        else:
+            client_mac = self.servers_MAC_table[server_ip]
+            client_port = self.server_port_table[server_ip]
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
