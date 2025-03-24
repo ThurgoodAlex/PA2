@@ -42,6 +42,7 @@ class LoadBalancer(object):
         log.info(f"Server ARP table: {self.servers_MAC_table}")
 
     def round_robin(self, client_ip):
+        """This is a round robin implementation to dynamically change what server the virtual ip is pointing towards."""
         if self.current_server == 0:
             server_ip = IPAddr("10.0.0.5")
             self.current_server = 1
@@ -59,13 +60,13 @@ class LoadBalancer(object):
         return server_ip, server_mac, server_port
     
     def _handle_ConnectionUp(self, event):
-
+        """This is here just to make sure the switch properly connects"""
         log.info(f"Switch {event.dpid} has connected.")
     
     def install_flows(self, event, client_ip,client_mac,client_port, server_ip, server_mac, server_port):
         """Set up OpenFlow rules to allow direct flows between the servers and the virtual ip."""
         
-        # client -> server
+        # client -> server flow rule
         client_to_server = of.ofp_flow_mod()
         client_to_server.match.in_port = client_port
         client_to_server.match.dl_type = 0x0800
@@ -78,7 +79,7 @@ class LoadBalancer(object):
         log.info(f"client -> server rule created matching on client MAC: {client_mac}, server MAC: {server_mac}, client port: {client_port}")
 
 
-        # server -> client
+        # server -> client flow rule
         server_to_client = of.ofp_flow_mod()
         server_to_client.match.in_port = server_port
         server_to_client.match.dl_type = 0x0800 
@@ -103,7 +104,7 @@ class LoadBalancer(object):
         return self.round_robin(client_ip)
         
     def _handle_PacketIn(self, event):
-        """This method has been taken and modified from the noxrepo documentation"""
+        """This method handles each packet and checks whether """
         
         packet = event.parsed
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
@@ -114,12 +115,11 @@ class LoadBalancer(object):
             server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
             #how do i handle IPv4 Packets?
-        elif packet.type == packet.IP_TYPE:
-            self._handle_IP(event, packet)
         else:
-            log.info(f"mystery packet{event.parsed}")
+            self._handle_IP(event, packet)
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
+        """This is based off the noxrepo documentation and only handles ARP packets. This creates the flow rules and sets up the ARP reply"""
         arp_packet = packet.payload
         log.info(f"ARP packet opcode: {arp_packet.opcode}")
         client_mac = self.clients_MAC_table[client_ip]
@@ -131,7 +131,6 @@ class LoadBalancer(object):
             log.info(f"ARP request details - protosrc: {arp_packet.protosrc}, hwdst: {arp_packet.hwdst}")
 
             self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
-
 
             arp_reply = arp()
             arp_reply.hwsrc = server_mac
@@ -160,9 +159,9 @@ class LoadBalancer(object):
             log.info("ARP reply")
 
     def _handle_IP(self, event, packet):
-        log.info(f"in the handle ip with packet: {event.parsed}")
-        ip_packet = packet.payload
+        """This handles the case when the packet is an IP packet"""
 
+        ip_packet = packet.payload
         if ip_packet.dstip == self.vIP:
             client_ip = ip_packet.srcip
             if client_ip in self.client_to_server_mapping:
