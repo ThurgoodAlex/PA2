@@ -64,7 +64,7 @@ class LoadBalancer(object):
         log.info(f"Switch {event.dpid} has connected.")
     
     def install_flows(self, event, client_ip,client_mac,client_port, server_ip, server_mac, server_port):
-        """Set up OpenFlow rules to allow direct flows between the servers and the virtual ip."""
+        """Set up OpenFlow rules to allow direct flows between the client and the server"""
         
         # client -> server flow rule
         client_to_server = of.ofp_flow_mod()
@@ -103,7 +103,7 @@ class LoadBalancer(object):
         return self.round_robin(client_ip)
         
     def _handle_PacketIn(self, event):
-        """This method handles each packet and checks whether """
+        """This method handles each packet and checks whether or not its an ARP or IP packet """
         
         packet = event.parsed
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
@@ -116,18 +116,16 @@ class LoadBalancer(object):
         else:
             self._handle_IP(event, packet)
 
-            
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
         """This is based off the noxrepo documentation and only handles ARP packets. This creates the flow rules and sets up the ARP reply"""
         arp_packet = packet.payload
-        log.info(f"ARP packet opcode: {arp_packet.opcode}")
+        log.info(f"ARP packet: {arp_packet}")
         client_mac = self.clients_MAC_table[client_ip]
         client_port = self.client_port_table[client_ip]
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             arp_reply = arp()
             arp_reply.hwsrc = server_mac
@@ -135,6 +133,8 @@ class LoadBalancer(object):
             arp_reply.opcode = arp.REPLY
             arp_reply.protosrc = server_ip 
             arp_reply.protodst = arp_packet.protosrc
+
+            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
             log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
@@ -157,47 +157,29 @@ class LoadBalancer(object):
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
-        ip_packet = packet.payload
-        log.info(f"handling packet {ip_packet}")
+        log.info(f"handling packet {packet}")
         
-        if ip_packet == packet.IP_TYPE:
+        if packet == packet.IP_TYPE:
             log.info("ipv4")
-            if ip_packet.dstip == self.vIP:
-                client_ip = ip_packet.srcip
+            if packet.dstip == self.vIP:
+                client_ip = packet.srcip
                 server_info = self.check_client_mapping(client_ip)
                 if server_info:
                     server_ip, server_mac, server_port = server_info
-                    eth_packet = packet
-                    eth_packet.dst = server_mac
-                    ip_packet.dstip = server_ip
-                    log.info('grabbing server info and creating message')
+                    packet.dst = server_mac
+                    packet.dstip = server_ip
+                    log.info(f"grabbing server info {server_mac, server_ip} and creating message")
                     msg = of.ofp_packet_out()
-                    msg.data = eth_packet.pack()
+                    msg.data = packet.pack()
                     msg.actions.append(of.ofp_action_output(port=server_port))
                     event.connection.send(msg)
-                    log.info("sending message")
+                    log.info("sent message")
                 else:
                     log.warning(f"No server mapping found for client {client_ip}")
-        elif ip_packet == packet.IPV6_TYPE:
-            log.info(f"ipv6 packet{ip_packet}")
-            if ip_packet.dstip == self.vIP:
-                client_ip = ip_packet.srcip
-                server_info = self.check_client_mapping(client_ip)
-                if server_info:
-                    server_ip, server_mac, server_port = server_info
-                    eth_packet = packet
-                    eth_packet.dst = server_mac
-                    ip_packet.dstip = server_ip
-                    log.info('grabbing server info and creating message')
-                    msg = of.ofp_packet_out()
-                    msg.data = eth_packet.pack()
-                    msg.actions.append(of.ofp_action_output(port=server_port))
-                    event.connection.send(msg)
-                    log.info("sending message")
-                else:
-                    log.warning(f"No server mapping found for client {client_ip}")
+            else:
+                log.info(f"not bound for our vip: {self.vIP}")
         else:
-            log.info(f"unkown packet{ip_packet}")
+            log.info(f"unkown packet{packet}")
 
 def launch():
     core.registerNew(LoadBalancer)
