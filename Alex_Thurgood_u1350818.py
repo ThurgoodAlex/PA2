@@ -109,14 +109,16 @@ class LoadBalancer(object):
         packet = event.parsed
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
         
-        if packet.type == packet.ARP_TYPE:
+        if packet.type == packet.ARP_TYPE and packet.protodst == self.vIP:
             log.info(f"Processing ARP packet from port {event.port}")
             client_ip = packet.payload.protosrc
             server_ip, server_mac, server_port = self.check_client_mapping(client_ip)
             self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
-            #how do i handle IPv4 Packets?
-        else:
+        elif packet.type == packet.IP_TYPE:
             self._handle_IP(event, packet)
+        else:
+             log.info(f"ipV6 packet {event.parsed}")
+            
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
         """This is based off the noxrepo documentation and only handles ARP packets. This creates the flow rules and sets up the ARP reply"""
