@@ -89,6 +89,7 @@ class LoadBalancer(object):
         event.connection.send(server_to_client)
         log.info(f"server -> client rule created: {server_to_client} ")
 
+
     def check_client_mapping(self, client_ip):
         """This checks to see if there is a mapping between the client and the server, if not it selects a server via round robin"""
 
@@ -124,17 +125,16 @@ class LoadBalancer(object):
         client_port = self.client_port_table[client_ip]
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
-        if packet.payload.opcode == arp.REQUEST and packet.dst == self.vIP:
-
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
+        if packet.payload.opcode == arp.REQUEST:
 
             arp_reply = arp()
             arp_reply.hwsrc = server_mac
-            arp_reply.hwdst = arp_packet.hwsrc
+            arp_reply.hwdst = packet.src
             arp_reply.opcode = arp.REPLY
-            arp_reply.protosrc = arp_packet.protodst
+            arp_reply.protosrc = server_ip 
             arp_reply.protodst = arp_packet.protosrc
 
+            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
             log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
@@ -149,7 +149,6 @@ class LoadBalancer(object):
             msg.data = ether.pack() 
             msg.actions.append(of.ofp_action_output(port=event.port))
             event.connection.send(msg)
-
 
             log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
             
