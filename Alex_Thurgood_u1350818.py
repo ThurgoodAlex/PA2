@@ -47,6 +47,7 @@ class LoadBalancer(object):
             log.info(f"Existing mapping found for {client_ip}. Returning existing mapping.")
             return self.client_to_server_mapping[client_ip]
 
+        log.info(f" not in mapping, getting new server")
         if self.current_server == 0:
             server_ip = IPAddr("10.0.0.5")
             self.current_server = 1
@@ -93,18 +94,6 @@ class LoadBalancer(object):
         event.connection.send(server_to_client)
         log.info(f"server -> client rule created: {server_to_client} ")
 
-
-    # def check_client_mapping(self, client_ip):
-    #     """This checks to see if there is a mapping between the client and the server, if not it selects a server via round robin"""
-
-    #     log.info(f"Looking up server for client {client_ip}")
-    #     if client_ip in self.client_to_server_mapping:
-    #         log.info(f"checking mapping{self.client_to_server_mapping}")
-    #         server_info = self.client_to_server_mapping[client_ip]
-    #         log.info(f"Found existing mapping for client {client_ip}: {server_info}")
-    #         return self.client_to_server_mapping[client_ip]
-    #     log.info(f"No existing mapping found for {client_ip}, using round-robin")
-    #     return self.round_robin(client_ip)
         
     def _handle_PacketIn(self, event):
         """This method handles each packet and checks whether or not its an ARP or IP packet """
