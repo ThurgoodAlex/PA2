@@ -107,12 +107,21 @@ class LoadBalancer(object):
             log.info(f"ARP Packet details: {packet.payload}")
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
-            client_ip = packet.payload.protosrc
-            if client_ip in self.client_to_server_mapping:
-                server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
-            else:
-                server_ip, server_mac, server_port = self.round_robin(client_ip)
-                log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
+            ip = packet.payload.protosrc
+            if ip == packet.payload.protosrc:
+                client_ip = ip
+                if client_ip in self.client_to_server_mapping:
+                    server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
+                else:
+                    server_ip, server_mac, server_port = self.round_robin(client_ip)
+                    log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
+                    self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
+            elif ip in self.servers_MAC_table:
+                client_ip = packet.payload.protodst
+                server_ip = ip
+                server_mac = self.servers_MAC_table[server_ip]
+                server_port = self.server_port_table[server_ip]
+                log.info(f"ARP request from server {server_ip} for client {client_ip}, passing to _handle_ARP")
                 self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
         else:
             self._handle_IP(event, packet)
