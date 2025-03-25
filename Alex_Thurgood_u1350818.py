@@ -141,6 +141,7 @@ class LoadBalancer(object):
             arp_reply.opcode = arp.REPLY
             arp_reply.protosrc = self.vIP 
             arp_reply.protodst = arp_packet.protosrc
+            
             self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
 
@@ -168,10 +169,9 @@ class LoadBalancer(object):
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
-        log.info(f"handling packet {packet}")
-        
+       
         if packet.type == packet.IP_TYPE:
-            log.info("ipv4")
+            log.info(f"ipv4 packet{packet}")
             if packet.payload.dstip == self.vIP:
                 client_ip = packet.payload.srcip
                 server_info = self.round_robin(client_ip)
@@ -189,8 +189,6 @@ class LoadBalancer(object):
                     log.warning(f"No server mapping found for client {client_ip}")
             else:
                 log.info(f"not bound for our vip: {self.vIP}")
-        else:
-            log.info(f"unkown packet{packet}")
 
 def launch():
     core.registerNew(LoadBalancer)
