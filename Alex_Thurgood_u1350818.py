@@ -134,14 +134,13 @@ class LoadBalancer(object):
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
         if packet.payload.opcode == arp.REQUEST:
-
             arp_reply = arp()
             arp_reply.hwsrc = server_mac
             arp_reply.hwdst = packet.src
             arp_reply.opcode = arp.REPLY
             arp_reply.protosrc = self.vIP 
             arp_reply.protodst = arp_packet.protosrc
-            
+
             self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
 
 
@@ -160,12 +159,11 @@ class LoadBalancer(object):
             msg.data = ether.pack() 
             msg.actions.append(of.ofp_action_output(port=event.port))
             event.connection.send(msg)
-            
 
             log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
             
         elif packet.payload.opcode == arp.REPLY:
-            log.info("ARP reply")
+            log.info(f"Received ARP reply from {packet.payload.protosrc} with MAC {packet.payload.hwsrc}")
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
