@@ -116,12 +116,14 @@ class LoadBalancer(object):
             #when the packet is coming from client-side
             if ip in self.clients_MAC_table:
                 client_ip = ip
+                client_port = self.client_port_table[ip]
+                client_mac = self.clients_MAC_table[ip]
                 if client_ip in self.client_to_server_mapping:
                     server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
                 else:
                     server_ip, server_mac, server_port = self.round_robin(client_ip)
                     log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
-                    self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
+                    self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port,client_mac, client_port)
             #when packet is coming from server-side
             elif ip in self.servers_MAC_table:
                 client_ip = packet.payload.protodst
@@ -129,13 +131,13 @@ class LoadBalancer(object):
                 server_mac = self.servers_MAC_table[server_ip]
                 server_port = self.server_port_table[server_ip]
                 log.info(f"ARP request from server {server_ip} for client {client_ip}, passing to _handle_ARP")
-                self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
+                self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port, client_mac, client_port)
         #IP packet case        
         else:
             self._handle_IP(event, packet)
 
 
-    def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
+    def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port, client_mac, client_port):
         """This has been taken and modified from the nox repo documentation."""
 
         log.info(f"Handling ARP for client_ip={client_ip}, server_ip={server_ip}")
@@ -144,16 +146,6 @@ class LoadBalancer(object):
         arp_packet = packet.payload
         log.info(f"ARP packet: {arp_packet}")
     
-        # Determine if the source IP is a client or server
-        if client_ip in self.clients_MAC_table:
-            client_mac = self.clients_MAC_table[client_ip]
-            client_port = self.client_port_table[client_ip]
-        elif client_ip in self.servers_MAC_table:
-            client_mac = self.servers_MAC_table[client_ip]
-            client_port = self.server_port_table[client_ip]
-        else:
-            log.warning(f"Unknown IP {client_ip}. Dropping ARP packet.")
-            return
 
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
