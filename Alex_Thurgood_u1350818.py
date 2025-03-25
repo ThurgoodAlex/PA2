@@ -92,7 +92,6 @@ class LoadBalancer(object):
             self.clients_MAC_table[ip] = mac
             self.client_port_table[ip] = port
             log.info(f"created new client mapping: IP={ip}, MAC={mac}, Port={port}")
-        #do i need to handle the case if the mapping info changes?
         
     def _handle_PacketIn(self, event):
         """This method handles each packet and checks whether or not its an ARP or IP packet """
@@ -147,18 +146,7 @@ class LoadBalancer(object):
         log.info(f"Server MAC table: {self.servers_MAC_table}")
         arp_packet = packet.payload
         log.info(f"ARP packet: {arp_packet}")
-    
-        #This code is needed to determine whether the packet is coming from the client side or server side
-        # if client_ip in self.clients_MAC_table:
-        #      client_mac = self.clients_MAC_table[client_ip]
-        #      client_port = self.client_port_table[client_ip]
-        # elif client_ip in self.servers_MAC_table:
-        #     client_mac = self.servers_MAC_table[client_ip]
-        #     client_port = self.server_port_table[client_ip]
-        # else:
-        #     log.warning(f"Unknown IP {client_ip}. Dropping ARP packet.")
-        #     return
-        
+
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
 
@@ -166,6 +154,7 @@ class LoadBalancer(object):
         if packet.payload.opcode == arp.REQUEST:
             if packet.payload.protodst == self.vIP:
                 #creating the arp reply from the client to the server
+                arp_reply = self._create_arp_reply(server_mac,)
                 arp_reply = arp()
                 arp_reply.hwsrc = server_mac
                 arp_reply.hwdst = packet.src
