@@ -8,6 +8,7 @@ log = core.getLogger()
 
 class LoadBalancer(object):
     def __init__(self):
+        """Setting the virtual IP, the current server for round-robin and the client and server tables"""
         self.vIP = IPAddr("10.0.0.10")
         self.current_server = 0
 
@@ -42,7 +43,7 @@ class LoadBalancer(object):
         log.info(f"Server ARP table: {self.servers_MAC_table}")
 
     def round_robin(self, client_ip):
-        """Ensure consistent server mapping for each client IP"""
+        """Implements a round robin based system for picking which server to map to """
         if client_ip in self.client_to_server_mapping:
             log.info(f"Existing mapping found for {client_ip}. Returning existing mapping.")
             return self.client_to_server_mapping[client_ip]
@@ -82,7 +83,6 @@ class LoadBalancer(object):
         event.connection.send(client_to_server)
         log.info(f"client -> server rule created {client_to_server}")
 
-
         # server -> client flow rule
         server_to_client = of.ofp_flow_mod()
         server_to_client.match.in_port = server_port
@@ -102,12 +102,12 @@ class LoadBalancer(object):
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
         
         if packet.type == packet.ARP_TYPE:
-            #do i have to check between requests and replys here?
             log.info(f"Processing ARP packet from port {event.port}")
             log.info(f"ARP Packet details: {packet.payload}")
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
             ip = packet.payload.protosrc
+            #when the packet is coming from client-side
             if ip in self.clients_MAC_table:
                 client_ip = ip
                 if client_ip in self.client_to_server_mapping:
@@ -116,6 +116,7 @@ class LoadBalancer(object):
                     server_ip, server_mac, server_port = self.round_robin(client_ip)
                     log.info(f"sending client{client_ip}, server {server_ip} to handle arp")
                     self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
+            #when packet is coming from server-side
             elif ip in self.servers_MAC_table:
                 client_ip = packet.payload.protodst
                 server_ip = ip
@@ -123,18 +124,21 @@ class LoadBalancer(object):
                 server_port = self.server_port_table[server_ip]
                 log.info(f"ARP request from server {server_ip} for client {client_ip}, passing to _handle_ARP")
                 self._handle_ARP(event, packet, client_ip, server_ip, server_mac, server_port)
+        #IP packet case        
         else:
             self._handle_IP(event, packet)
 
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
+        """This has been taken and modified from the nox repo documentation."""
+
         log.info(f"Handling ARP for client_ip={client_ip}, server_ip={server_ip}")
         log.info(f"Client MAC table: {self.clients_MAC_table}")
         log.info(f"Server MAC table: {self.servers_MAC_table}")
         arp_packet = packet.payload
         log.info(f"ARP packet: {arp_packet}")
     
-    # Determine if the source IP is a client or server
+        # Determine if the source IP is a client or server
         if client_ip in self.clients_MAC_table:
             client_mac = self.clients_MAC_table[client_ip]
             client_port = self.client_port_table[client_ip]
@@ -148,6 +152,7 @@ class LoadBalancer(object):
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
 
+        #ARP request case
         if packet.payload.opcode == arp.REQUEST:
             if packet.payload.protodst == self.vIP:
                 #creating the arp reply from the client to the server
@@ -176,23 +181,23 @@ class LoadBalancer(object):
                 self.install_flows(event, client_ip, client_mac, client_port, server_ip, server_mac, server_port)
             elif packet.payload.protodst in self.clients_MAC_table:
                 #creating an arp reply from the server to the client
-                target_ip = packet.payload.protodst
-                target_mac = self.clients_MAC_table[target_ip]
+                client_ip = packet.payload.protodst
+                client_mac = self.clients_MAC_table[client_ip]
 
                 arp_reply = arp()
-                arp_reply.hwsrc = target_mac
+                arp_reply.hwsrc = client_mac
                 arp_reply.hwdst = packet.src
                 arp_reply.opcode = arp.REPLY
-                arp_reply.protosrc = target_ip
+                arp_reply.protosrc = client_ip
                 arp_reply.protodst = arp_packet.protosrc
 
-                log.info(f"Created ARP reply for client IP {target_ip} with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
+                log.info(f"Created ARP reply for client IP {client_ip} with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
                 log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
 
                 ether = ethernet()
                 ether.type = ethernet.ARP_TYPE
                 ether.dst = packet.src
-                ether.src = target_mac
+                ether.src = client_mac
                 ether.payload = arp_reply
 
                 msg = of.ofp_packet_out()
