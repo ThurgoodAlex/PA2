@@ -9,6 +9,7 @@ log = core.getLogger()
 class LoadBalancer(object):
     def __init__(self):
         self.vIP = IPAddr("10.0.0.10")
+        self.current_server = 0
 
         self.clients_MAC_table = {
             IPAddr("10.0.0.1"): EthAddr("00:00:00:00:00:01"),
@@ -42,18 +43,17 @@ class LoadBalancer(object):
 
     def round_robin(self, client_ip):
         """Ensure consistent server mapping for each client IP"""
-        current_server = 0
         if client_ip in self.client_to_server_mapping:
             log.info(f"Existing mapping found for {client_ip}. Returning existing mapping.")
             return self.client_to_server_mapping[client_ip]
         
-        log.info(f"current server{current_server}")
-        if current_server == 0:
+        log.info(f"current server{self.current_server}")
+        if self.current_server == 0:
             server_ip = IPAddr("10.0.0.5")
-            current_server = 1
+            self.current_server = 1
         else:
             server_ip = IPAddr("10.0.0.6")
-            current_server = 0
+            self.current_server = 0
 
         server_mac = self.servers_MAC_table[server_ip]  
         server_port = self.server_port_table[server_ip] 
