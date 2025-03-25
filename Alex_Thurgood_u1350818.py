@@ -106,7 +106,7 @@ class LoadBalancer(object):
             log.info(f"ARP Packet details: {packet.payload}")
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
-            client_ip = packet.payload.protosrc
+            client_ip = packet.payload.protodst
             if client_ip in self.client_to_server_mapping:
                 server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
             else:
@@ -140,6 +140,7 @@ class LoadBalancer(object):
 
         if packet.payload.opcode == arp.REQUEST:
             if packet.payload.protodst == self.vIP:
+                #creating the arp reply from the client to the server
                 arp_reply = arp()
                 arp_reply.hwsrc = server_mac
                 arp_reply.hwdst = packet.src
@@ -164,9 +165,9 @@ class LoadBalancer(object):
                 log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
                 self.install_flows(event, client_ip, client_mac, client_port, server_ip, server_mac, server_port)
             elif packet.payload.protodst in self.clients_MAC_table:
+                #creating an arp reply from the server to the client
                 target_ip = packet.payload.protodst
                 target_mac = self.clients_MAC_table[target_ip]
-                target_port = self.client_port_table[target_ip]
 
                 arp_reply = arp()
                 arp_reply.hwsrc = target_mac
