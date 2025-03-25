@@ -141,9 +141,6 @@ class LoadBalancer(object):
             arp_reply.protosrc = self.vIP 
             arp_reply.protodst = arp_packet.protosrc
 
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
-
-
             log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
             log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
 
@@ -161,9 +158,11 @@ class LoadBalancer(object):
             event.connection.send(msg)
 
             log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
-            
+            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
+
         elif packet.payload.opcode == arp.REPLY:
             log.info(f"Received ARP reply from {packet.payload.protosrc} with MAC {packet.payload.hwsrc}")
+
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
@@ -172,12 +171,19 @@ class LoadBalancer(object):
             log.info(f"ipv4 packet{packet}")
             if packet.payload.dstip == self.vIP:
                 client_ip = packet.payload.srcip
+                if client_ip in self.clients_MAC_table:
+                    client_mac = self.clients_MAC_table[client_ip]
+                    client_port = self.client_port_table[client_ip]
+                else:
+                    log.warning(f"Client IP {client_ip} not in MAC table. Dropping packet.")
+                    return
                 server_info = self.round_robin(client_ip)
                 if server_info:
                     server_ip, server_mac, server_port = server_info
                     packet.dst = server_mac
-                    packet.dstip = server_ip
+                    packet.payload.dstip = server_ip
                     log.info(f"grabbing server info {server_mac, server_ip} and creating message")
+                    self.install_flows(event, client_ip, client_mac, client_port, server_ip, server_mac, server_port)
                     msg = of.ofp_packet_out()
                     msg.data = packet.pack()
                     msg.actions.append(of.ofp_action_output(port=server_port))
