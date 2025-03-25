@@ -12,19 +12,9 @@ class LoadBalancer(object):
         self.vIP = IPAddr("10.0.0.10")
         self.current_server = 0
 
-        self.clients_MAC_table = {
-            IPAddr("10.0.0.1"): EthAddr("00:00:00:00:00:01"),
-            IPAddr("10.0.0.2"): EthAddr("00:00:00:00:00:02"),
-            IPAddr("10.0.0.3"): EthAddr("00:00:00:00:00:03"),
-            IPAddr("10.0.0.4"): EthAddr("00:00:00:00:00:04")
-        }
+        self.clients_MAC_table = {}
 
-        self.client_port_table = {
-            IPAddr("10.0.0.1"): 1,
-            IPAddr("10.0.0.2"): 2,
-            IPAddr("10.0.0.3"): 3,
-            IPAddr("10.0.0.4"): 4
-        }
+        self.client_port_table = {}
 
         self.servers_MAC_table = {
             IPAddr("10.0.0.5"): EthAddr("00:00:00:00:00:05"),
@@ -94,6 +84,15 @@ class LoadBalancer(object):
         event.connection.send(server_to_client)
         log.info(f"server -> client rule created: {server_to_client} ")
 
+
+
+    def _create_client_mapping(self, ip, mac, port):
+        """Create the client mapping from ip to MAC to Port"""
+        if ip not in self.clients_MAC_table:
+            self.clients_MAC_table[ip] = mac
+            self.client_port_table[ip] = port
+            log.info(f"created new client mapping: IP={ip}, MAC={mac}, Port={port}")
+        #do i need to handle the case if the mapping info changes?
         
     def _handle_PacketIn(self, event):
         """This method handles each packet and checks whether or not its an ARP or IP packet """
@@ -107,6 +106,13 @@ class LoadBalancer(object):
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
             ip = packet.payload.protosrc
+
+            #Dynamically create the client mappings
+            mac, port = packet.src, event.port
+            log.info(f"packet info {ip, mac, port}")
+            if ip not in self.servers_MAC_table:
+                self._create_client_mapping(ip, mac, port)
+
             #when the packet is coming from client-side
             if ip in self.clients_MAC_table:
                 client_ip = ip
