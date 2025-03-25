@@ -154,7 +154,6 @@ class LoadBalancer(object):
         if packet.payload.opcode == arp.REQUEST:
             if packet.payload.protodst == self.vIP:
                 #creating the arp reply from the client to the server
-                arp_reply = self._create_arp_reply(server_mac,)
                 arp_reply = arp()
                 arp_reply.hwsrc = server_mac
                 arp_reply.hwdst = packet.src
