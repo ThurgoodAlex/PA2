@@ -118,51 +118,82 @@ class LoadBalancer(object):
 
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port):
-        """This is based off the noxrepo documentation and only handles ARP packets. This creates the flow rules and sets up the ARP reply"""
         log.info(f"Handling ARP for client_ip={client_ip}, server_ip={server_ip}")
         log.info(f"Client MAC table: {self.clients_MAC_table}")
         log.info(f"Server MAC table: {self.servers_MAC_table}")
         arp_packet = packet.payload
         log.info(f"ARP packet: {arp_packet}")
-        if client_ip  in self.clients_MAC_table:
+    
+    # Determine if the source IP is a client or server
+        if client_ip in self.clients_MAC_table:
             client_mac = self.clients_MAC_table[client_ip]
             client_port = self.client_port_table[client_ip]
+        elif client_ip in self.servers_MAC_table:
+            client_mac = self.servers_MAC_table[client_ip]
+            client_port = self.server_port_table[client_ip]
         else:
-            client_mac = self.servers_MAC_table[server_ip]
-            client_port = self.server_port_table[server_ip]
+            log.warning(f"Unknown IP {client_ip}. Dropping ARP packet.")
+            return
 
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
+
         if packet.payload.opcode == arp.REQUEST:
-            arp_reply = arp()
-            arp_reply.hwsrc = server_mac
-            arp_reply.hwdst = packet.src
-            arp_reply.opcode = arp.REPLY
-            arp_reply.protosrc = self.vIP 
-            arp_reply.protodst = arp_packet.protosrc
+            if packet.payload.protodst == self.vIP:
+                arp_reply = arp()
+                arp_reply.hwsrc = server_mac
+                arp_reply.hwdst = packet.src
+                arp_reply.opcode = arp.REPLY
+                arp_reply.protosrc = self.vIP 
+                arp_reply.protodst = arp_packet.protosrc
 
-            log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
-            log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
+                log.info(f"Created ARP reply with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
+                log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
 
-            ether = ethernet()
-            ether.type = ethernet.ARP_TYPE
-            ether.dst = packet.src
-            ether.src = server_mac
-            ether.payload = arp_reply
+                ether = ethernet()
+                ether.type = ethernet.ARP_TYPE
+                ether.dst = packet.src
+                ether.src = server_mac
+                ether.payload = arp_reply
 
+                msg = of.ofp_packet_out()
+                msg.data = ether.pack() 
+                msg.actions.append(of.ofp_action_output(port=event.port))
+                event.connection.send(msg)
 
+                log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
+                self.install_flows(event, client_ip, client_mac, client_port, server_ip, server_mac, server_port)
+            elif packet.payload.protodst in self.clients_MAC_table:
+                target_ip = packet.payload.protodst
+                target_mac = self.clients_MAC_table[target_ip]
+                target_port = self.client_port_table[target_ip]
 
-            msg = of.ofp_packet_out()
-            msg.data = ether.pack() 
-            msg.actions.append(of.ofp_action_output(port=event.port))
-            event.connection.send(msg)
+                arp_reply = arp()
+                arp_reply.hwsrc = target_mac
+                arp_reply.hwdst = packet.src
+                arp_reply.opcode = arp.REPLY
+                arp_reply.protosrc = target_ip
+                arp_reply.protodst = arp_packet.protosrc
 
-            log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
-            self.install_flows(event, client_ip,client_mac,client_port, server_ip, server_mac, server_port)
+                log.info(f"Created ARP reply for client IP {target_ip} with hwsrc={arp_reply.hwsrc}, hwdst={arp_reply.hwdst}")
+                log.info(f"ARP reply protosrc={arp_reply.protosrc}, protodst={arp_reply.protodst}")
 
+                ether = ethernet()
+                ether.type = ethernet.ARP_TYPE
+                ether.dst = packet.src
+                ether.src = target_mac
+                ether.payload = arp_reply
+
+                msg = of.ofp_packet_out()
+                msg.data = ether.pack()
+                msg.actions.append(of.ofp_action_output(port=event.port))
+                event.connection.send(msg)
+
+                log.info(f"Sent ARP reply to {arp_reply.protodst} on port {event.port}")
+            else:
+                log.warning(f"ARP request for unknown IP {packet.payload.protodst}. Dropping.")
         elif packet.payload.opcode == arp.REPLY:
             log.info(f"Received ARP reply from {packet.payload.protosrc} with MAC {packet.payload.hwsrc}")
-
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
