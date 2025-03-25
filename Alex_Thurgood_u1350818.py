@@ -108,7 +108,7 @@ class LoadBalancer(object):
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
             ip = packet.payload.protosrc
-            if ip == packet.payload.protosrc:
+            if ip in self.clients_MAC_table:
                 client_ip = ip
                 if client_ip in self.client_to_server_mapping:
                     server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
