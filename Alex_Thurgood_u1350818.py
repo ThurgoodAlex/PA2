@@ -127,8 +127,8 @@ class LoadBalancer(object):
             #when packet is coming from server-side
             elif ip in self.servers_MAC_table:
                 client_ip = packet.payload.protodst
-                client_port = self.client_port_table[ip]
-                client_mac = self.clients_MAC_table[ip]
+                client_port = self.client_port_table[client_ip]
+                client_mac = self.clients_MAC_table[client_ip]
                 server_ip = ip
                 server_mac = self.servers_MAC_table[server_ip]
                 server_port = self.server_port_table[server_ip]
@@ -148,7 +148,17 @@ class LoadBalancer(object):
         arp_packet = packet.payload
         log.info(f"ARP packet: {arp_packet}")
     
-
+        #This code is needed to determine whether the packet is coming from the client side or server side
+        # if client_ip in self.clients_MAC_table:
+        #      client_mac = self.clients_MAC_table[client_ip]
+        #      client_port = self.client_port_table[client_ip]
+        # elif client_ip in self.servers_MAC_table:
+        #     client_mac = self.servers_MAC_table[client_ip]
+        #     client_port = self.server_port_table[client_ip]
+        # else:
+        #     log.warning(f"Unknown IP {client_ip}. Dropping ARP packet.")
+        #     return
+        
         log.info(f"Client info: IP={client_ip}, MAC={client_mac}, port={client_port}")
         log.info(f"Server info IP={server_ip}, MAC={server_mac}, port={server_port}")
 
