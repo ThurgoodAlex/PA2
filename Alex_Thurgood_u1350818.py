@@ -218,12 +218,11 @@ class LoadBalancer(object):
             log.info(f"ipv4 packet{packet}")
             if packet.payload.dstip == self.vIP:
                 client_ip = packet.payload.srcip
-                if client_ip in self.clients_MAC_table:
+                if client_ip not in self.servers_MAC_table:
+                    self._create_client_mapping(client_ip, packet.src, event.port)
                     client_mac = self.clients_MAC_table[client_ip]
                     client_port = self.client_port_table[client_ip]
-                else:
-                    log.warning(f"Client IP {client_ip} not in MAC table. Dropping packet.")
-                    return
+
                 server_info = self.round_robin(client_ip)
                 if server_info:
                     server_ip, server_mac, server_port = server_info
