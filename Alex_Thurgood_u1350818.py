@@ -102,11 +102,12 @@ class LoadBalancer(object):
         log.info(f"This is the parsed packet: {packet} and packet type {packet.type}")
         
         if packet.type == packet.ARP_TYPE:
+            #do i have to check between requests and replys here?
             log.info(f"Processing ARP packet from port {event.port}")
             log.info(f"ARP Packet details: {packet.payload}")
             log.info(f"ARP Request from IP: {packet.payload.protosrc}")
             log.info(f"ARP Request for IP: {packet.payload.protodst}")
-            client_ip = packet.payload.protodst
+            client_ip = packet.payload.protosrc
             if client_ip in self.client_to_server_mapping:
                 server_ip, server_mac, server_port = self.client_to_server_mapping[client_ip]
             else:
