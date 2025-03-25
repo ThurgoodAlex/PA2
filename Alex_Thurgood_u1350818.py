@@ -127,6 +127,8 @@ class LoadBalancer(object):
             #when packet is coming from server-side
             elif ip in self.servers_MAC_table:
                 client_ip = packet.payload.protodst
+                client_port = self.client_port_table[ip]
+                client_mac = self.clients_MAC_table[ip]
                 server_ip = ip
                 server_mac = self.servers_MAC_table[server_ip]
                 server_port = self.server_port_table[server_ip]
