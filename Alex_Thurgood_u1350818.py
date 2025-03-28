@@ -84,8 +84,6 @@ class LoadBalancer(object):
         event.connection.send(server_to_client)
         log.info(f"server -> client rule created: {server_to_client} ")
 
-
-
     def _create_client_mapping(self, ip, mac, port):
         """Create the client mapping from ip to MAC to Port"""
         if ip not in self.clients_MAC_table:
@@ -139,7 +137,7 @@ class LoadBalancer(object):
 
 
     def _handle_ARP(self, event, packet, client_ip, server_ip, server_mac, server_port, client_mac, client_port):
-        """This has been taken and modified from the nox repo documentation."""
+        """This has been taken and modified from the nox repo documentation. it handles ARP packets and creates ARP replys based on whether its from the server or client."""
 
         log.info(f"Handling ARP for client_ip={client_ip}, server_ip={server_ip}")
         log.info(f"Client MAC table: {self.clients_MAC_table}")
@@ -211,7 +209,7 @@ class LoadBalancer(object):
 
     def _handle_IP(self, event, packet):
         """This handles the case when the packet is an IP packet"""
-       
+       #Making sure its only an IPv4 type and checks/creates the mapping for the client
         if packet.type == packet.IP_TYPE:
             log.info(f"ipv4 packet{packet}")
             if packet.payload.dstip == self.vIP:
@@ -221,6 +219,7 @@ class LoadBalancer(object):
                     client_mac = self.clients_MAC_table[client_ip]
                     client_port = self.client_port_table[client_ip]
 
+                #only installing the flows and sending the message if the server info is valid
                 server_info = self.round_robin(client_ip)
                 if server_info:
                     server_ip, server_mac, server_port = server_info
